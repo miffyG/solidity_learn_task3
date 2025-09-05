@@ -65,7 +65,11 @@ contract AuctionFactory is IAuctionFactory, Ownable {
         emit AuctionImplementationUpgraded(currentVersion, oldImplementation, newImplementation);
     }
 
-    function _deployAuction() internal view returns (address) {
+    function getAuctions() external view returns (address[] memory) {
+        return allAuctions;
+    }
+
+    function _deployAuction() internal returns (address) {
         return auctionImplementations[currentVersion].clone();
     }
 }
