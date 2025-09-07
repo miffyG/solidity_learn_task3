@@ -5,8 +5,7 @@ interface IAuctionFactory {
 
     event AuctionDeployed(
         address indexed seller,
-        address indexed auctionContract,
-        uint256 version
+        address indexed auctionContract
     );
 
     event AuctionImplementationUpgraded(
@@ -24,7 +23,9 @@ interface IAuctionFactory {
         uint256 _duration
     ) external returns (address);
 
-    function upgradeAuctionImplementation(address newImplementation) external;
-
     function getAuctions() external view returns (address[] memory);
+
+    function getAuction(address nftAddress, uint256 tokenId) external view returns (address);
+
+    function upgradeImplementation(address newImplementation) external;
 }

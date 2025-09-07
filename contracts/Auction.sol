@@ -50,10 +50,6 @@ contract Auction is
         _;
     }
 
-    constructor() {
-        _disableInitializers();
-    }
-
     function initialize(
         address _seller,
         address _nftAddress,
