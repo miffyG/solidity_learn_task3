@@ -50,17 +50,23 @@ contract Auction is
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _seller,
         address _nftAddress,
         uint256 _tokenId,
         uint256 _startingPriceUSD,
-        uint256 _duration
+        uint256 _duration,
+        address _ethPriceFeed
     ) external initializer {
         __Ownable_init(_seller);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        ethPriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        ethPriceFeed = AggregatorV3Interface(_ethPriceFeed); // sepolia eth feed address 0x694AA1769357215DE4FAC081bf1f309aDC325306
         __setupSupportedToken();
 
         require(_seller != address(0), "Auction: invalid seller address");
@@ -93,6 +99,13 @@ contract Auction is
         address usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
         tokenPriceFeed[usdc] = AggregatorV3Interface(0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E);
         supportedTokens[usdc] = true;
+    }
+
+    function setSupportedToken(address token, address priceFeed) external onlyOwner {
+        require(token != address(0), "Auction: invalid token address");
+        require(priceFeed != address(0), "Auction: invalid price feed address");
+        tokenPriceFeed[token] = AggregatorV3Interface(priceFeed);
+        supportedTokens[token] = true;
     }
 
     function bidWithETH() external payable nonReentrant onlyBeforeEnd {

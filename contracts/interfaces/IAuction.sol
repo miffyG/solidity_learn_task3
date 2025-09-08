@@ -62,7 +62,8 @@ interface IAuction {
         address _nftAddress,
         uint256 _tokenId,
         uint256 _startingPriceUSD,
-        uint256 _duration
+        uint256 _duration,
+        address _ethPriceFeed
     ) external;
 
     function bidWithETH() external payable;
