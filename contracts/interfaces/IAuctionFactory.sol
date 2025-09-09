@@ -20,7 +20,8 @@ interface IAuctionFactory {
         address _nftAddress,
         uint256 _tokenId,
         uint256 _startingPriceUSD,
-        uint256 _duration
+        uint256 _duration,
+        address _ethPriceFeed
     ) external returns (address);
 
     function getAuctions() external view returns (address[] memory);

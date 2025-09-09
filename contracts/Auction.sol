@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract Auction is 
     Initializable,
@@ -73,8 +75,6 @@ contract Auction is
         require(_nftAddress != address(0), "Auction: invalid NFT address");
         require(_startingPriceUSD > 0, "Auction: starting price must be greater than zero");
         require(_duration > 0, "Auction: Invalid duration");
-
-        IERC721(_nftAddress).transferFrom(_seller, address(this), _tokenId);
 
         auctionInfo = AuctionInfo({
             seller: _seller,
@@ -189,6 +189,8 @@ contract Auction is
         require(msg.value > 0, "Auction: bid amount must be greater than zero");
 
         uint256 bidUSD = getCurrentPriceUSD(address(0), msg.value);
+        console.log("Bid USD: ", Strings.toString(bidUSD));
+        console.log("Starting Price USD: ", Strings.toString(auctionInfo.startingPriceUSD));
         require(bidUSD >= auctionInfo.startingPriceUSD, "Auction: bid must be at least starting price");
         require(bidUSD > auctionInfo.currentBidUSD, "Auction: bid must be higher than current bid");
 

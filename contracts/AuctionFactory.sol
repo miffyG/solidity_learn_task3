@@ -26,13 +26,17 @@ contract AuctionFactory is IAuctionFactory, Ownable {
         address _nftAddress,
         uint256 _tokenId,
         uint256 _startingPriceUSD,
-        uint256 _duration
+        uint256 _duration,
+        address _ethPriceFeed
     ) external returns (address auctionProxy) {
         require(_seller != address(0), "AuctionFactory: invalid seller address");
         require(_nftAddress != address(0), "AuctionFactory: invalid NFT address");
         require(_startingPriceUSD > 0, "AuctionFactory: starting price must be greater than zero");
         require(_duration > 0, "AuctionFactory: invalid duration");
         require(getAuction[_nftAddress][_tokenId] == address(0), "AuctionFactory: auction already exists");
+
+        // 首先转移NFT到工厂合约
+        IERC721(_nftAddress).transferFrom(_seller, address(this), _tokenId);
 
         // 创建代理合约
         bytes memory initData = abi.encodeWithSelector(
@@ -41,10 +45,14 @@ contract AuctionFactory is IAuctionFactory, Ownable {
             _nftAddress,
             _tokenId,
             _startingPriceUSD,
-            _duration
+            _duration,
+            _ethPriceFeed
         );
 
         auctionProxy = address(new ERC1967Proxy(auctionImplementation, initData));
+
+        // 将NFT转移到拍卖合约
+        IERC721(_nftAddress).transferFrom(address(this), auctionProxy, _tokenId);
 
         // 记录拍卖合约
         getAuction[_nftAddress][_tokenId] = auctionProxy;

@@ -38,21 +38,20 @@ describe("Auction", function () {
         const Auction = await ethers.getContractFactory("Auction");
         const auctionProxy = await upgrades.deployProxy(Auction, [], { initializer: false });
         await auctionProxy.waitForDeployment();
-        const auctionAddress = await auctionProxy.getAddress(); // 获取 Auction 合约地址
-
-        // 卖家授权 Auction 合约操作 NFT
-        await mockNFT.connect(seller).approve(auctionAddress, TOKEN_ID);
 
         // 初始化 Auction 合约
-        auction = auctionProxy.attach(auctionAddress);
+        auction = auctionProxy.attach(auctionProxy.target);
         await auction.initialize(
             seller.address,
-            await mockNFT.getAddress(),
+            mockNFT.target,
             TOKEN_ID,
             STARTING_PRICE_USD,
             DURATION,
-            await mockPriceFeed.getAddress()
+            mockPriceFeed.target
         );
+
+        // 手动转移NFT到拍卖合约（模拟AuctionFactory的行为）
+        await mockNFT.connect(seller).transferFrom(seller.address, auction.target, TOKEN_ID);
     });
 
     describe("Initialization", function () {
@@ -61,7 +60,7 @@ describe("Auction", function () {
             const info = await auction.getAuctionInfo();
 
             expect(info.seller).to.equal(seller.address);
-            expect(info.nftAddress).to.equal(await mockNFT.getAddress());
+            expect(info.nftAddress).to.equal(mockNFT.target);
             expect(info.tokenId).to.equal(TOKEN_ID);
             expect(info.startingPriceUSD).to.equal(STARTING_PRICE_USD);
             expect(info.currentBidUSD).to.equal(0);
@@ -78,11 +77,11 @@ describe("Auction", function () {
             await expect(
                 newAuction1.initialize(
                     ethers.ZeroAddress,
-                    await mockNFT.getAddress(),
+                    mockNFT.target,
                     TOKEN_ID,
                     STARTING_PRICE_USD,
                     DURATION,
-                    await mockPriceFeed.getAddress()
+                    mockPriceFeed.target
                 )
             ).to.be.reverted;
 
@@ -94,7 +93,7 @@ describe("Auction", function () {
                     TOKEN_ID,
                     STARTING_PRICE_USD,
                     DURATION,
-                    await mockPriceFeed.getAddress()
+                    mockPriceFeed.target
                 )
             ).to.be.revertedWith("Auction: invalid NFT address");
 
@@ -102,11 +101,11 @@ describe("Auction", function () {
             await expect(
                 newAuction3.initialize(
                     seller.address,
-                    await mockNFT.getAddress(),
+                    mockNFT.target,
                     TOKEN_ID,
                     0,
                     DURATION,
-                    await mockPriceFeed.getAddress()
+                    mockPriceFeed.target
                 )
             ).to.be.revertedWith("Auction: starting price must be greater than zero");
 
@@ -114,11 +113,11 @@ describe("Auction", function () {
             await expect(
                 newAuction4.initialize(
                     seller.address,
-                    await mockNFT.getAddress(),
+                    mockNFT.target,
                     TOKEN_ID,
                     STARTING_PRICE_USD,
                     0,
-                    await mockPriceFeed.getAddress()
+                    mockPriceFeed.target
                 )
             ).to.be.revertedWith("Auction: Invalid duration");
         });
@@ -129,21 +128,21 @@ describe("Auction", function () {
             await mockNFT.connect(seller).approve(seller.address, 2);
 
             const newAuctionProxy = await upgrades.deployProxy(Auction, [], { initializer: false });
-            const newAuctionAddress = await newAuctionProxy.getAddress();
+            const newAuctionAddress = newAuctionProxy.target;
             await mockNFT.connect(seller).approve(newAuctionAddress, 2);
             const deployTx = await newAuctionProxy.initialize(
                 seller.address,
-                await mockNFT.getAddress(),
+                mockNFT.target,
                 2,
                 STARTING_PRICE_USD,
                 DURATION,
-                await mockPriceFeed.getAddress()
+                mockPriceFeed.target
             );
             const receipt = await deployTx.wait();
 
             await expect(deployTx)
                 .to.emit(newAuctionProxy.attach(newAuctionAddress), "AuctionCreated")
-                .withArgs(seller.address, await mockNFT.getAddress(), 2, STARTING_PRICE_USD, anyValue);
+                .withArgs(seller.address, mockNFT.target, 2, STARTING_PRICE_USD, anyValue);
         });
     });
 
@@ -162,7 +161,7 @@ describe("Auction", function () {
         });
 
         it("Should allow bidding through receive function", async function () {
-            await expect(bidder1.sendTransaction({ to: await auction.getAddress(), value: bidAmount }))
+            await expect(bidder1.sendTransaction({ to: auction.target, value: bidAmount }))
                 .to.emit(auction, "BidPlaced");
         });
 
@@ -221,7 +220,7 @@ describe("Auction", function () {
             const MockUSDCPriceFeed = await ethers.getContractFactory("MockPriceFeed");
             const mockUSDCPriceFeed = await MockUSDCPriceFeed.deploy(8, USDC_PRICE);
 
-            await auction.connect(seller).setSupportedToken(await mockERC20.getAddress(), await mockUSDCPriceFeed.getAddress());
+            await auction.connect(seller).setSupportedToken(mockERC20.target, mockUSDCPriceFeed.target);
         });
 
         it("Should revert with invalid payment token address", async function () {
@@ -232,13 +231,13 @@ describe("Auction", function () {
 
         it("Should revert with zero bid amount", async function () {
             await expect(
-                auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), 0)
+                auction.connect(bidder1).bidWithToken(mockERC20.target, 0)
             ).to.be.revertedWith("Auction: bid amount must be greater than zero");
         });
 
         it("Should allow bidding with ERC20 tokens", async function () {
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
-            await expect(auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount))
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
+            await expect(auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount))
                 .to.emit(auction, "BidPlaced");
         });
 
@@ -247,26 +246,26 @@ describe("Auction", function () {
             const unsupportedToken = await MockERC20Unsupported.deploy("UNSUPPORTED", "UNS", 18);
             await unsupportedToken.waitForDeployment();
             await expect(
-                auction.connect(bidder1).bidWithToken(await unsupportedToken.getAddress(), bidAmount)
+                auction.connect(bidder1).bidWithToken(unsupportedToken.target, bidAmount)
             ).to.be.revertedWith("Auction: unsupported payment token");
         });
 
         it("Should revert if bid is below starting price", async function () {
             const lowAmount = ethers.parseUnits("500", 6);
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), lowAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, lowAmount);
 
             await expect(
-                auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), lowAmount)
+                auction.connect(bidder1).bidWithToken(mockERC20.target, lowAmount)
             ).to.be.revertedWith("Auction: bid must be at least starting price");
         });
 
         it("Should revert if bid is not higher than current bid", async function () {
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
-            await auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
+            await auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount);
 
-            await mockERC20.connect(bidder2).approve(await auction.getAddress(), bidAmount);
+            await mockERC20.connect(bidder2).approve(auction.target, bidAmount);
             await expect(
-                auction.connect(bidder2).bidWithToken(await mockERC20.getAddress(), bidAmount)
+                auction.connect(bidder2).bidWithToken(mockERC20.target, bidAmount)
             ).to.be.revertedWith("Auction: bid must be higher than current bid");
         });
 
@@ -275,32 +274,32 @@ describe("Auction", function () {
             await ethers.provider.send("evm_mine");
 
             await expect(
-                auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount)
+                auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount)
             ).to.be.revertedWith("Auction: already ended");
         });
 
         it("Should transfer tokens from bidder to auction contract", async function () {
             const initialBalance = await mockERC20.balanceOf(bidder1.address);
-            const auctionInitialBalance = await mockERC20.balanceOf(await auction.getAddress());
+            const auctionInitialBalance = await mockERC20.balanceOf(auction.target);
 
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
-            await auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
+            await auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount);
 
             const finalBalance = await mockERC20.balanceOf(bidder1.address);
-            const auctionFinalBalance = await mockERC20.balanceOf(await auction.getAddress());
+            const auctionFinalBalance = await mockERC20.balanceOf(auction.target);
 
             expect(finalBalance).to.equal(initialBalance - bidAmount);
             expect(auctionFinalBalance).to.equal(auctionInitialBalance + bidAmount);
         });
 
         it("Should refund previous ERC20 bidder when new token bid is placed", async function () {
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
-            await auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
+            await auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount);
 
             const initialBalance = await mockERC20.balanceOf(bidder1.address);
             const higherBid = ethers.parseUnits("3000", 6);
-            await mockERC20.connect(bidder2).approve(await auction.getAddress(), higherBid);
-            await auction.connect(bidder2).bidWithToken(await mockERC20.getAddress(), higherBid);
+            await mockERC20.connect(bidder2).approve(auction.target, higherBid);
+            await auction.connect(bidder2).bidWithToken(mockERC20.target, higherBid);
 
             const finalBalance = await mockERC20.balanceOf(bidder1.address);
             expect(finalBalance).to.equal(initialBalance + bidAmount);
@@ -315,8 +314,8 @@ describe("Auction", function () {
 
             // 用ERC20代币出更高价
             const higherBid = ethers.parseUnits("3000", 6);
-            await mockERC20.connect(bidder2).approve(await auction.getAddress(), higherBid);
-            await auction.connect(bidder2).bidWithToken(await mockERC20.getAddress(), higherBid);
+            await mockERC20.connect(bidder2).approve(auction.target, higherBid);
+            await auction.connect(bidder2).bidWithToken(mockERC20.target, higherBid);
 
             const bidder1FinalETHBalance = await ethers.provider.getBalance(bidder1.address);
 
@@ -325,8 +324,8 @@ describe("Auction", function () {
         });
 
         it("Should correctly calculate USD value for token bids", async function () {
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
-            await auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
+            await auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount);
 
             const info = await auction.getAuctionInfo();
 
@@ -337,15 +336,15 @@ describe("Auction", function () {
         });
 
         it("Should emit BidPlaced event with correct parameters", async function () {
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), bidAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, bidAmount);
 
             await expect(
-                auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount)
+                auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount)
             ).to.emit(auction, "BidPlaced")
             .withArgs(
                 bidder1.address,
                 anyValue,
-                await mockERC20.getAddress(),
+                mockERC20.target,
                 bidAmount
             );
         });
@@ -353,10 +352,10 @@ describe("Auction", function () {
         it("Should handle insufficient allowance", async function () {
             // 只授权一半的金额
             const halfAmount = bidAmount / 2n;
-            await mockERC20.connect(bidder1).approve(await auction.getAddress(), halfAmount);
+            await mockERC20.connect(bidder1).approve(auction.target, halfAmount);
 
             try {
-                await auction.connect(bidder1).bidWithToken(await mockERC20.getAddress(), bidAmount);
+                await auction.connect(bidder1).bidWithToken(mockERC20.target, bidAmount);
                 expect.fail("Expected transaction to be reverted");
             } catch (error) {
                 // 检查错误是否与ERC20相关（allowance或balance不足）
