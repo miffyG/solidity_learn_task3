@@ -1,6 +1,15 @@
 {
   "name": "solidity_learn_task3",
   "version": "1.0.0",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "coverage": "npx hardhat coverage",
+    "test:factory": "npx hardhat test test/AuctionFactory.test.js",
+    "test:auction": "npx hardhat test test/Auction.test.js",
+    "test:nft": "npx hardhat test test/NFT.test.js",
+    "deploy:sepolia": "npx hardhat run scripts/deploy_to_sepolia.js",
+    "upgrade": "npx hardhat run scripts/upgrade_auction.js"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.0",
@@ -9,13 +18,15 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@nomicfoundation/hardhat-verify": "^2.1.1",
+    "@openzeppelin/hardhat-upgrades": "^3.9.1",
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
     "chai": "^4.5.0",
     "ethers": "^6.15.0",
     "hardhat": "^2.26.3",
+    "hardhat-contract-sizer": "^2.10.1",
+    "hardhat-coverage": "^0.9.19",
     "hardhat-gas-reporter": "^2.3.0",
-    "solidity-coverage": "^0.8.16",
     "typechain": "^8.3.2"
   },
   "dependencies": {
@@ -23,7 +34,6 @@
     "@openzeppelin/contracts": "^5.4.0",
     "@openzeppelin/contracts-upgradeable": "^5.4.0",
     "dotenv": "^17.2.2",
-    "hardhat-contract-sizer": "^2.10.1",
     "solhint": "^6.0.1"
   }
 }
