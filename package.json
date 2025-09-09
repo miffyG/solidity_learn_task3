@@ -8,7 +8,7 @@
     "test:auction": "npx hardhat test test/Auction.test.js",
     "test:nft": "npx hardhat test test/NFT.test.js",
     "deploy": "npx hardhat run scripts/deploy.js --network sepolia",
-    "upgrade": "npx hardhat run scripts/upgrade_auction.js"
+    "upgrade": "npx hardhat run scripts/upgrade_auction.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

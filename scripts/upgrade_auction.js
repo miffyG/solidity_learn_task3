@@ -5,7 +5,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
 
     console.log("Upgrading contracts with the account:", deployer.address);
-    console.log("Account balance:", (await deployer.getBalance()).toString());
+    console.log("Account balance:", (await ethers.provider.getBalance(deployer.address)).toString());
 
     try {
         // 1. 获取部署信息
@@ -25,7 +25,7 @@ async function main() {
         // 2. 获取AuctionFactory实例
         const AuctionFactory = await ethers.getContractFactory("AuctionFactory");
         const auctionFactory = AuctionFactory.attach(factoryAddress);
-        console.log("Attached to AuctionFactory:", auctionFactory.address);
+        console.log("Attached to AuctionFactory:", await auctionFactory.getAddress());
 
         // 3. 检查当前实现合约信息
         const currentImplementation = await auctionFactory.auctionImplementation();
